@@ -3,7 +3,7 @@
 import PackageDescription
 
 public let package = Package(
-    name: "swift-repo-machines",
+    name: "swift-repo-core",
     platforms: [
         .macOS(.v14),
         .iOS(.v17),

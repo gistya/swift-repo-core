@@ -1,5 +1,5 @@
 {
-  "originHash" : "410046f64434674f32ca66848e10defb242ce3c102fd9845e1c78bb64994fe36",
+  "originHash" : "b5c21ab4da692d13706e7a44674e7cf2eb8f1d32d2deb5ab29451e81f6ae55a3",
   "pins" : [
     {
       "identity" : "swift-compositional-init",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/gistya/SwiftXState/",
       "state" : {
-        "branch" : "2.0.0-alpha-4",
-        "revision" : "09303133702673c842bc07144362313d9d5d5071"
+        "revision" : "09303133702673c842bc07144362313d9d5d5071",
+        "version" : "2.0.0-alpha-4"
       }
     }
   ],
