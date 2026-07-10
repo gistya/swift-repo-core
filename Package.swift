@@ -16,15 +16,15 @@ public let package = Package(
             name: "SwiftRepoCore",
             targets: ["SwiftRepoCore"],
         ),
-//        .library(name: "swiftxstate", targets: ["SwiftXState"])
     ],
     dependencies: [
+        .package(url: "https://github.com/gistya/swift-compositional-init", from: "1.1.2"),
         .package(url: "https://github.com/gistya/SwiftXState", exact: "2.0.0-alpha-4"),
     ],
     targets: [
         .target(
             name: "SwiftRepoCore",
-            dependencies: ["SwiftXState"],
+            dependencies: ["SwiftXState", .product(name: "CompositionalInit", package: "swift-compositional-init")],
         ),
         .testTarget(
             name: "SwiftRepoCoreTests",
