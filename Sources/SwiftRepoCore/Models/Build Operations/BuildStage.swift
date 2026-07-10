@@ -10,12 +10,12 @@ nonisolated public enum BuildStage: String, CaseIterable, Sendable, Equatable, H
 
     public var title: String {
         switch self {
-        case .off: String(localized: "OFF")
-        case .building: String(localized: "BUILDING")
-        case .testing: String(localized: "TESTING")
-        case .measuring: String(localized: "MEASURING")
-        case .deploying: String(localized: "DEPLOYING")
-        case .failed: String(localized: "FAILED")
+        case .off: coreLocalized("OFF")
+        case .building: coreLocalized("BUILDING")
+        case .testing: coreLocalized("TESTING")
+        case .measuring: coreLocalized("MEASURING")
+        case .deploying: coreLocalized("DEPLOYING")
+        case .failed: coreLocalized("FAILED")
         }
     }
 
@@ -124,8 +124,8 @@ nonisolated public enum BuildStage: String, CaseIterable, Sendable, Equatable, H
     }
 
     public static func moduleDisplay(for stage: BuildStage, context: BuildOperationsContext) -> String {
-        if stage == .failed { return String(localized: "ERROR") }
-        guard stage.isActive else { return String(localized: "READY") }
+        if stage == .failed { return coreLocalized("ERROR") }
+        guard stage.isActive else { return coreLocalized("READY") }
         // The last confident target/phase parsed off the output stream (sticky — junk lines don't
         // clobber it). Falls back to the repo/operation name only until the first real target lands.
         if let label = context.progress.moduleLabel, !label.isEmpty {
@@ -134,7 +134,7 @@ nonisolated public enum BuildStage: String, CaseIterable, Sendable, Equatable, H
         if let target = context.activeJob?.targetRepository, !target.isEmpty {
             return clipped(target, limit: 22)
         }
-        return clipped(context.activeJob?.kind.title ?? String(localized: "RUNNING"), limit: 22)
+        return clipped(context.activeJob?.kind.title ?? coreLocalized("RUNNING"), limit: 22)
     }
 
     /// The LCD label for a single output line, or `nil` when the line names no target/phase (so the

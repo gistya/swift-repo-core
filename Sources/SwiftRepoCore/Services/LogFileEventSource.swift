@@ -1,18 +1,23 @@
 import Foundation
 
 /// Publishes a `Void` whenever the file at `url` changes — writes, growth, creation, deletion, or
-/// rename/rotation — driven by DispatchSource file-system events instead of interval polling.
+/// rename/rotation. An initial event is emitted on (re)arm so subscribers do a first read without
+/// waiting for a change.
 ///
-/// While the file does not exist its parent DIRECTORY is watched, so creation is caught promptly;
-/// on delete/rename the watcher re-arms (log rotation reopens the fresh inode). An initial event is
-/// emitted on (re)arm so subscribers do a first read without waiting for a change.
+/// On Apple platforms this is driven by DispatchSource file-system events (kqueue). Those aren't
+/// available in swift-corelibs Dispatch on Linux (no `makeFileSystemObjectSource`, no `O_EVTONLY`),
+/// so Linux falls back to modification-time polling — coarser, but it keeps live log tailing working.
 nonisolated public final class LogFileEventSource: @unchecked Sendable {
     private let url: URL
     private let queue = DispatchQueue(label: "SwiftBuilder.LogFileEventSource")
     private let events = AsyncEventBroadcaster<Void>()
+    private var cancelled = false
+#if canImport(Darwin)
     private var source: (any DispatchSourceFileSystemObject)?
     private var watchingDirectory = false
-    private var cancelled = false
+#else
+    private var lastModified: Date?
+#endif
 
     var stream: AsyncStream<Void> {
         events.stream(bufferingPolicy: .bufferingNewest(1))
@@ -29,12 +34,15 @@ nonisolated public final class LogFileEventSource: @unchecked Sendable {
     func cancel() {
         queue.async {
             self.cancelled = true
+#if canImport(Darwin)
             self.source?.cancel()
             self.source = nil
+#endif
             self.events.finish()
         }
     }
 
+#if canImport(Darwin)
     /// Open the file (or, if absent, its directory) and arm a DispatchSource on it. Runs on `queue`.
     private func arm() {
         guard !cancelled else { return }
@@ -81,4 +89,18 @@ nonisolated public final class LogFileEventSource: @unchecked Sendable {
         // First read on (re)arm — the subscriber should not wait for the next change.
         events.yield { () }
     }
+#else
+    /// Linux fallback: poll the file's modification time and yield on change (plus an initial read).
+    /// Re-arms every second on `queue` until cancelled. Handles rotation/creation implicitly — a
+    /// missing file reads as no mtime, and the first mtime after it (re)appears counts as a change.
+    private func arm() {
+        guard !cancelled else { return }
+        let mod = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+        if mod != lastModified {
+            lastModified = mod
+            events.yield { () }
+        }
+        queue.asyncAfter(deadline: .now() + 1) { [weak self] in self?.arm() }
+    }
+#endif
 }

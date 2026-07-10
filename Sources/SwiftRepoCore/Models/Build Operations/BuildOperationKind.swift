@@ -15,15 +15,15 @@ nonisolated public enum BuildOperationKind: String, Codable, CaseIterable, Ident
 
     public var title: String {
         switch self {
-        case .incrementalFrontend: String(localized: "Incremental Frontend")
-        case .incrementalSwiftRepo: String(localized: "Incremental Swift Repo")
-        case .incrementalEverything: String(localized: "Incremental Everything")
-        case .buildScript: String(localized: "Full Build Script")
-        case .freshBuild: String(localized: "Fresh Rebuild")
-        case .updateDependencies: String(localized: "Update Dependencies")
-        case .updateAndRebuild: String(localized: "Update & Rebuild Changed")
-        case .dependencyBuild: String(localized: "Dependency Build")
-        case .buildToolchain: String(localized: "Build Toolchain")
+        case .incrementalFrontend: coreLocalized("Incremental Frontend")
+        case .incrementalSwiftRepo: coreLocalized("Incremental Swift Repo")
+        case .incrementalEverything: coreLocalized("Incremental Everything")
+        case .buildScript: coreLocalized("Full Build Script")
+        case .freshBuild: coreLocalized("Fresh Rebuild")
+        case .updateDependencies: coreLocalized("Update Dependencies")
+        case .updateAndRebuild: coreLocalized("Update & Rebuild Changed")
+        case .dependencyBuild: coreLocalized("Dependency Build")
+        case .buildToolchain: coreLocalized("Build Toolchain")
         }
     }
 

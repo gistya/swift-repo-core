@@ -7,6 +7,11 @@ import Foundation
 /// a security-scoped bookmark and re-open it at startup. The scope is started once and deliberately
 /// left open for the whole app lifetime so the `git` / `ninja` / `build-script` subprocesses the
 /// build spawns inherit that access too.
+///
+/// Security-scoped bookmarks are an Apple-sandbox concept and don't exist in swift-corelibs-foundation
+/// on Linux, so the real implementation is Darwin-only. Linux has no sandbox — a chosen folder is
+/// reachable by path directly — so the Linux build gets a no-op stub until a Linux front-end wires up
+/// plain-path persistence.
 public final class ProjectAccessBookmark {
     private let defaultsKey = "projectRootBookmark"
     private let defaults: UserDefaults
@@ -18,6 +23,7 @@ public final class ProjectAccessBookmark {
         self.defaults = defaults
     }
 
+#if canImport(Darwin)
     /// Save a bookmark for a freshly picked directory and begin accessing it. `url` must come from
     /// the powerbox (`NSOpenPanel`) so it carries a security scope. Returns whether access started.
     @discardableResult
@@ -70,4 +76,17 @@ public final class ProjectAccessBookmark {
         activeURL = url
         return true
     }
+#else
+    /// Linux stub: no sandbox, so the picked folder is reachable directly. We simply remember it for
+    /// this launch; cross-launch persistence (plain path) is the Linux front-end's job to add.
+    @discardableResult
+    public func store(pickedURL url: URL) -> Bool {
+        activeURL = url
+        return true
+    }
+
+    /// Linux stub: no bookmark to resolve.
+    @discardableResult
+    public func restore() -> URL? { nil }
+#endif
 }

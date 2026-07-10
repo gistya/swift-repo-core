@@ -14,13 +14,13 @@ nonisolated public enum AppSectionID: String, StateIdentifying, CaseIterable, Id
 
     public var title: String {
         switch self {
-        case .build: String(localized: "Build")
-        case .settings: String(localized: "Settings")
-        case .toolchain: String(localized: "Toolchain")
-        case .history: String(localized: "History")
-        case .logs: String(localized: "Logs")
-        case .inspector: String(localized: "Inspector")
-        case .style: String(localized: "Style")
+        case .build: coreLocalized("Build")
+        case .settings: coreLocalized("Settings")
+        case .toolchain: coreLocalized("Toolchain")
+        case .history: coreLocalized("History")
+        case .logs: coreLocalized("Logs")
+        case .inspector: coreLocalized("Inspector")
+        case .style: coreLocalized("Style")
         }
     }
 

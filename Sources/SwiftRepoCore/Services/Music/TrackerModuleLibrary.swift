@@ -21,7 +21,7 @@ nonisolated public enum TrackerModuleLibrary {
         for ext in supportedExtensions {
             for subdirectory in subdirectories {
                 bundle.urls(forResourcesWithExtension: ext, subdirectory: subdirectory)?.forEach {
-                    urls.insert($0.standardizedFileURL)
+                    urls.insert(($0 as URL).standardized)
                 }
             }
         }
@@ -57,7 +57,7 @@ nonisolated public enum TrackerModuleLibrary {
         var urls = Set<URL>()
         for case let url as URL in enumerator {
             guard supportedExtensions.contains(url.pathExtension.lowercased()) else { continue }
-            urls.insert(url.standardizedFileURL)
+            urls.insert(url.standardized)
         }
         return urls
     }
