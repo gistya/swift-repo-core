@@ -71,7 +71,7 @@ final public class LogTailReader {
             return
         }
         let offset = readOffset
-        loadTask = Task { [trackedURL] in
+        loadTask = Task(name: "com.swiftRepoCore.logTailLoader", priority: .medium) { [trackedURL] in
             defer {
                 // Drain a change event that arrived while this read was in flight.
                 if pendingReload {

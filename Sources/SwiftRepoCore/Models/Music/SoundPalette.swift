@@ -1,17 +1,13 @@
 nonisolated public struct SoundPalette: Codable, Equatable, Hashable, Sendable {
     public var sampleRate: Double
     public var masterVolume: Float
-    public var loopDuration: Double
-    public var startupCueDuration: Double
-    public var failureCueDuration: Double
-    public var successCueDuration: Double
-    public var buildingBPM: Double
-    public var testingBPM: Double
-    public var measuringBPM: Double
-    public var deployingBPM: Double
-    public var streamBufferFrames: Int
-    public var streamPrerollFrames: Int
-    public var streamRenderChunkFrames: Int
+//    TODO: Implement the sound cues
+//    public var startupCueDuration: Double
+//    public var failureCueDuration: Double
+//    public var successCueDuration: Double
+    public var bufferSize: UInt32
+    /// Limit of how long a track can be rendered.
+    /// Avoids a situation where a track of infiinite length breaks us.
     public var maxRenderedTrackDuration: Double
     public var trackEndTailDuration: Double
     public var trackerModuleDirectory: String

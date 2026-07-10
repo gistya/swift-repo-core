@@ -80,11 +80,14 @@ public final class ProcessPipeReader: @unchecked Sendable {
 
         let record = String(buffer[..<separatorIndex])
         var nextIndex = buffer.index(after: separatorIndex)
+        
         if buffer[separatorIndex] == "\r",
            nextIndex < buffer.endIndex,
-           buffer[nextIndex] == "\n" {
+           buffer[nextIndex] == "\n"
+        {
             nextIndex = buffer.index(after: nextIndex)
         }
+        
         buffer = String(buffer[nextIndex...])
         return record
     }

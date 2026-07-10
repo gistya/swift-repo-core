@@ -6,6 +6,13 @@ nonisolated public struct TrackerModuleTrack: Hashable, Sendable {
     public let title: String
     public let format: String
     
+    public init(url: URL, fileName: String, title: String, format: String) {
+        self.url = url
+        self.fileName = fileName
+        self.title = title
+        self.format = format
+    }
+    
     public nonisolated func nowPlaying(moduleTitle: String?) -> SoundtrackNowPlaying {
         let parts = Self.displayParts(from: title)
         return SoundtrackNowPlaying(
