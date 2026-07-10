@@ -1,6 +1,7 @@
 nonisolated public struct SoundPalette: Codable, Equatable, Hashable, Sendable {
     public var sampleRate: Double
     public var masterVolume: Float
+    public var scheduleAheadBuffers: Int
 //    TODO: Implement the sound cues
 //    public var startupCueDuration: Double
 //    public var failureCueDuration: Double
