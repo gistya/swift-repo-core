@@ -7,7 +7,8 @@ nonisolated public enum BuildCommandBuilder {
         buildSubdir: String,
         options: BuildOptions,
         targetRepository: String = "",
-        changedRepositories: [SwiftRepository] = []
+        changedRepositories: [SwiftRepository] = [],
+        matchTimestamp: Bool = false
     ) -> (executable: String, arguments: [String], display: String, workingDirectory: URL) {
         switch kind {
         case .incrementalFrontend:
@@ -38,7 +39,7 @@ nonisolated public enum BuildCommandBuilder {
                 clean: kind == .freshBuild
             )
         case .updateDependencies:
-            return updateCheckoutCommand(project: project, scheme: project.checkoutScheme, matchTimestamp: true)
+            return updateCheckoutCommand(project: project, matchTimestamp: matchTimestamp)
         case .updateAndRebuild:
             if changedRepositories.isEmpty {
                 return ninjaCommand(
@@ -159,7 +160,17 @@ nonisolated public enum BuildCommandBuilder {
             if options.dryRun { args.append("-n") }
             if options.buildNinja { args.append("--build-ninja") }
             if options.useMake { args.append("-m") }
-            if options.installablePackage { args.append("--installable-package") }
+            if options.installablePackage {
+                let custom = options.installablePackagePath.trimmingCharacters(in: .whitespacesAndNewlines)
+                let packageURL: URL
+                if custom.isEmpty {
+                    packageURL = ((try? AppPaths.exportsDirectory()) ?? project.buildRoot)
+                        .appendingPathComponent("swift-installable-package.tar.gz")
+                } else {
+                    packageURL = URL(fileURLWithPath: (custom as NSString).expandingTildeInPath)
+                }
+                args.append(contentsOf: ["--installable-package", packageURL.path])
+            }
             if options.swiftPM { args.append("-p") }
             if options.llbuild { args.append("-b") }
             if options.lldb { args.append("-l") }
@@ -227,10 +238,19 @@ nonisolated public enum BuildCommandBuilder {
 
     public static func updateCheckoutCommand(
         project: SwiftProjectInfo,
-        scheme: String,
         matchTimestamp: Bool
     ) -> (executable: String, arguments: [String], display: String, workingDirectory: URL) {
-        var args = ["--source-root", project.root.path, "--scheme", scheme]
+        // Never let update-checkout touch the swift repo: the user is on their own branch, and moving it
+        // to a scheme's branch would discard that checkout. Skipping it keeps the current branch checked
+        // out and updates only the sibling repos to the versions it needs.
+        var args = ["--source-root", project.root.path, "--skip-repository", "swift"]
+        // Pin a --scheme ONLY when the user explicitly chose one in the Checkout scheme menu. In Auto
+        // mode we pass none, so update-checkout uses its own default scheme for the siblings; with
+        // --match-timestamp each one lands at the commit matching the swift branch's HEAD date. Passing a
+        // non-scheme branch name here is exactly what broke it before ("'NoneType' object is not iterable").
+        if project.schemeResolutionSource == .manualOverride, !project.checkoutScheme.isEmpty {
+            args.append(contentsOf: ["--scheme", project.checkoutScheme])
+        }
         if matchTimestamp { args.append("--match-timestamp") }
         let script = project.updateCheckout.path
         let display = "cd \(shellQuote(project.swiftDirectory.path)) && \(shellQuote(script)) \(args.map(shellQuote).joined(separator: " "))"

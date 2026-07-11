@@ -183,6 +183,13 @@ public enum BuildOptionCatalog {
             category: .products
         ),
         BuildOptionDescriptor(
+            id: "installablePackagePath",
+            title: "Installable Package Path",
+            summary: "Destination path for the --installable-package toolchain tarball.",
+            practicalAdvice: "Leave blank to write the package into the app's Exports folder. Choose a .tar.gz path to control where the distributable toolchain artifact lands.",
+            category: .products
+        ),
+        BuildOptionDescriptor(
             id: "foundation",
             title: "Build Foundation",
             summary: "Build swift-foundation as part of the toolchain.",

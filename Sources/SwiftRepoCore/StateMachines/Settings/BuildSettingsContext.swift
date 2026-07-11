@@ -86,6 +86,7 @@ nonisolated public struct BuildSettingsContext: Sendable, Equatable {
         case "hostTarget": copy.options.hostTarget = value
         case "stdlibDeploymentTargets": copy.options.stdlibDeploymentTargets = value
         case "buildStdlibDeploymentTargets": copy.options.buildStdlibDeploymentTargets = value
+        case "installablePackagePath": copy.options.installablePackagePath = value
         case "installPrefix": copy.options.installPrefix = value
         case "installDestdir": copy.options.installDestdir = value
         case "installSymroot": copy.options.installSymroot = value

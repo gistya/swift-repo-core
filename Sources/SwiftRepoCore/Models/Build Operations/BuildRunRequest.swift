@@ -12,6 +12,9 @@ nonisolated public struct BuildRunRequest: Sendable, Equatable, Hashable, Blanka
     public let targetRepository: String
     public let mode: BuildPlanningMode
     public let logFilePath: String
+    /// Whether an update-checkout run should pass `--match-timestamp` (pin sibling repos to the commit
+    /// matching the swift branch's HEAD date). Off by default; only the `.updateDependencies` kind uses it.
+    public let matchTimestamp: Bool
 
     public init(
         operationID: UUID = UUID(),
@@ -21,7 +24,8 @@ nonisolated public struct BuildRunRequest: Sendable, Equatable, Hashable, Blanka
         options: BuildOptions,
         targetRepository: String,
         mode: BuildPlanningMode = .command(),
-        logFilePath: String
+        logFilePath: String,
+        matchTimestamp: Bool = false
     ) {
         self.operationID = operationID
         self.kind = kind
@@ -31,6 +35,7 @@ nonisolated public struct BuildRunRequest: Sendable, Equatable, Hashable, Blanka
         self.targetRepository = targetRepository
         self.mode = mode
         self.logFilePath = logFilePath
+        self.matchTimestamp = matchTimestamp
     }
     
     public static let _blank = Self(

@@ -46,7 +46,13 @@ nonisolated public enum CheckoutSchemeResolver {
             return (match.name, branch, .swiftRepoBranch)
         }
 
-        return (branch, branch, .branchFallback)
+        // The branch is not a scheme name, an alias, or any scheme's swift-repo branch — i.e. a custom
+        // feature/fork branch (e.g. a compiler-work branch). Passing the raw branch name as `--scheme`
+        // makes update-checkout fail with "'NoneType' object is not iterable", because no scheme by that
+        // name exists in update-checkout-config.json. Fall back to the config's default scheme (typically
+        // `main`) — what you'd choose by hand — and let --match-timestamp pin the siblings to that
+        // scheme's branch at the swift HEAD's commit date. The manual override picker covers anything else.
+        return (config.defaultScheme, branch, .defaultScheme)
     }
 
     public static func availableSchemes(swiftDirectory: URL) async -> [String] {
@@ -55,14 +61,14 @@ nonisolated public enum CheckoutSchemeResolver {
     }
 
     public static func availableSchemes(swiftDirectory: URL, currentBranch branch: String?) -> [String] {
+        // Only real schemes from update-checkout-config.json — NOT the current branch name. A custom
+        // branch (e.g. a compiler-fork branch) is not a scheme, so offering it as one lets the user pick
+        // a value that makes update-checkout fail. Auto mode (no scheme) covers those branches.
+        _ = branch
         let configURL = swiftDirectory
             .appendingPathComponent("utils/update_checkout/update-checkout-config.json")
-        var schemes = loadConfig(at: configURL)?.schemes.map(\.name) ?? []
-        if let branch, !schemes.contains(branch) {
-            schemes.append(branch)
-        }
-        if schemes.isEmpty { schemes.append("main") }
-        return schemes.sorted()
+        let schemes = loadConfig(at: configURL)?.schemes.map(\.name) ?? []
+        return (schemes.isEmpty ? ["main"] : schemes).sorted()
     }
 
     public static func currentBranch(in swiftDirectory: URL) async -> String? {

@@ -45,6 +45,9 @@ nonisolated public struct BuildOptions: Codable, Equatable, Hashable, Sendable {
     public var libDispatch = false
     public var xctest = false
     public var installablePackage = false
+    /// Destination path for the `--installable-package` toolchain tarball. Empty = write into the
+    /// app's Exports folder (see `BuildCommandBuilder`).
+    public var installablePackagePath = ""
     public var installAll = false
     public var installSwift = false
     public var installLLVM = false
@@ -137,6 +140,7 @@ nonisolated public struct BuildOptions: Codable, Equatable, Hashable, Sendable {
         libDispatch = try container.decodeIfPresent("libDispatch", default: libDispatch)
         xctest = try container.decodeIfPresent("xctest", default: xctest)
         installablePackage = try container.decodeIfPresent("installablePackage", default: installablePackage)
+        installablePackagePath = try container.decodeIfPresent("installablePackagePath", default: installablePackagePath)
         installAll = try container.decodeIfPresent("installAll", default: installAll)
         installSwift = try container.decodeIfPresent("installSwift", default: installSwift)
         installLLVM = try container.decodeIfPresent("installLLVM", default: installLLVM)

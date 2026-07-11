@@ -36,7 +36,8 @@ nonisolated public enum BuildJobPlanner {
                 buildSubdir: request.buildSubdir,
                 options: request.options,
                 targetRepository: request.targetRepository,
-                changedRepositories: changedRepositories
+                changedRepositories: changedRepositories,
+                matchTimestamp: request.matchTimestamp
             )
         case .freshNinjaClean:
             return BuildCommandBuilder.freshNinjaClean(

@@ -116,6 +116,11 @@ nonisolated public enum BuildProcessRunner {
             !entry.isEmpty && seen.insert(entry).inserted
         }
         environment["PATH"] = mergedPath.joined(separator: ":")
+        // The build tools are Python (update-checkout, build-script). Python block-buffers stdout when
+        // it's a pipe rather than a TTY, so its output — including errors like update-checkout's retry
+        // loop — can sit unflushed for minutes and the log looks frozen after just the launch header.
+        // Force line-by-line streaming so progress and failures reach the log as they happen.
+        environment["PYTHONUNBUFFERED"] = "1"
         return environment
     }
 
