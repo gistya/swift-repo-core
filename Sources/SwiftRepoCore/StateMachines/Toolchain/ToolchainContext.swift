@@ -3,11 +3,13 @@ import SwiftXState
 nonisolated public struct ToolchainContext: Sendable, Equatable {
     public var presetFilePath: String = ""
     public var catalog: [ParsedPreset] = []
+    /// Presets discovered from `~/*.ini` overlay files, listed at the top of the "Your custom" menu.
+    public var homePresets: [ParsedPreset] = []
     public var draft: ToolchainRecipeDraft = ToolchainRecipeDraft()
     public var lastError: String?
-    
+
     public init() {}
-    
+
     public init(presetFilePath: String, catalog: [ParsedPreset], draft: ToolchainRecipeDraft, lastError: String? = nil) {
         self.presetFilePath = presetFilePath
         self.catalog = catalog

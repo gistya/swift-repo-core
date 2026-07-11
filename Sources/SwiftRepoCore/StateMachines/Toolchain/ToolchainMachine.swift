@@ -25,8 +25,11 @@ public struct ToolchainMachine: StateMachine {
                     throw PresentableError(ToolchainLoadError.missingPresetFile)
                 }
                 do {
-                    let presets = try BuildPresetParser.parse(contentsOf: URL(fileURLWithPath: path))
-                    return ToolchainCatalog(presets: presets)
+                    let base = try BuildPresetParser.parse(contentsOf: URL(fileURLWithPath: path))
+                    // Keep the home-directory `*.ini` overlays (e.g. the ~/<tag>-presets.ini files this
+                    // app writes) SEPARATE from the base catalog so the UI can list them at the top of
+                    // the "Your custom" menu rather than mixed into the composed presets.
+                    return ToolchainCatalog(presets: base, homePresets: BuildPresetParser.homeDirectoryPresets())
                 } catch {
                     throw PresentableError(ToolchainLoadError.parseFailed(error.localizedDescription))
                 }
@@ -35,6 +38,7 @@ public struct ToolchainMachine: StateMachine {
             .onDone(to: .ready, reading: ToolchainCatalog.self) { output, ctx in
                 var next = ctx
                 next.catalog = output.presets
+                next.homePresets = output.homePresets
                 next.lastError = nil
                 return next
             }

@@ -10,6 +10,29 @@ nonisolated public enum BuildPresetParser {
         parse(try String(contentsOf: url, encoding: .utf8))
     }
 
+    /// Scan the user's home directory for `*.ini` files and return every `[preset: …]` section they
+    /// define, sorted by file name. A file that isn't in build-presets format has no `preset:` sections,
+    /// so it parses to nothing and is skipped — this only surfaces real toolchain preset files, e.g. the
+    /// `~/<tag>-presets.ini` overlays SwiftBuilder writes when it builds a toolchain. Unreadable files
+    /// are ignored rather than failing the whole scan.
+    public static func homeDirectoryPresets(
+        in homeDirectory: URL = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+    ) -> [ParsedPreset] {
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: homeDirectory,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]
+        ) else { return [] }
+        // Dedupe by preset name across files (several overlays generated with the same prefix+flags can
+        // share a name); the first file wins, scanned in file-name order.
+        var seen = Set<String>()
+        return entries
+            .filter { $0.pathExtension.lowercased() == "ini" }
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+            .flatMap { (try? parse(contentsOf: $0)) ?? [] }
+            .filter { seen.insert($0.name).inserted }
+    }
+
     public static func parse(_ text: String) -> [ParsedPreset] {
         var sections: [(name: String, keys: [(String, String?)])] = []
         var currentSection: (name: String, keys: [(String, String?)])?
