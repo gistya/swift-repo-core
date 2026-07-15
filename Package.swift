@@ -5,11 +5,12 @@ import PackageDescription
 public let package = Package(
     name: "swift-repo-core",
     platforms: [
-        .macOS(.v14),
-        .iOS(.v17),
-        .watchOS(.v10),
-        .tvOS(.v17),
-        .macCatalyst(.v17),
+        .iOS(.v18),
+        .macCatalyst(.v18),
+        .macOS(.v15),
+        .tvOS(.v18),
+        .visionOS(.v2),
+        .watchOS(.v11),
     ],
     products: [
         .library(
@@ -19,7 +20,7 @@ public let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/gistya/swift-compositional-init", from: "1.1.2"),
-        .package(url: "https://github.com/gistya/SwiftXState", exact: "2.0.0-alpha.6"),
+        .package(url: "https://github.com/gistya/SwiftXState", exact: "2.0.0-alpha.7"),
     ],
     targets: [
         .target(
