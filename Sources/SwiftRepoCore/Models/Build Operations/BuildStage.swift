@@ -76,22 +76,24 @@ nonisolated public enum BuildStage: String, CaseIterable, Sendable, Equatable, H
         }
     }
 
-    /// Detects a stage change from a single line of build output — but ONLY from the authoritative,
-    /// line-anchored phase banners that `build-script`, `build-script-impl`, and the Python product
-    /// pipeline print. Everything else (compiler commands, `[x/y]` ninja lines, warnings) returns
-    /// `nil`, meaning "keep the current stage". This is deliberately NOT a substring search: a
-    /// filename or path that merely contains "test"/"install"/"benchmark" must not move the stage.
+    /// Detects a stage change from a single line of build output. The stage tracks what the output is
+    /// actually doing right now: a `[n/m]` ninja counter means compiling, a lit `PASS:`/`FAIL:` result
+    /// means tests are running. Beyond those, only the authoritative `--- <phase> ---` banners move the
+    /// stage (to installing/benchmarking). Everything else returns `nil` = "keep the current stage".
+    ///
+    /// It is deliberately NOT a substring search, and it deliberately ignores the one-time PLAN SUMMARY
+    /// lines build-script prints at startup — e.g. `Running Swift tests for: check-swift-validation-…`
+    /// and `Building the standard library for: …`. Those are the plan, not real-time phase changes;
+    /// matching them left the stage stuck on Testing through the entire build.
     public static func detect(bannerIn rawLine: String) -> BuildStage? {
         let line = rawLine.trimmingCharacters(in: .whitespaces)
-        let lower = line.lowercased()
 
-        // Distinctive full-line status prints (anchored at line start; a compiler command never
-        // begins with these sentences).
-        if lower.hasPrefix("running swift benchmarks for") { return .measuring }
-        if lower.hasPrefix("running swift tests for") { return .testing }
-        if lower.hasPrefix("building the standard library for") { return .building }
+        // Live lit test results (PASS:/FAIL:/XFAIL:/…) → tests are running.
+        if isLitResultLine(line) { return .testing }
+        // Ninja compile progress `[n/m]…` → we're compiling.
+        if isNinjaProgressLine(line) { return .building }
 
-        // Phase banners have the exact shape `--- <phase> ---`.
+        // Otherwise only a real `--- <phase> ---` banner moves the stage.
         guard line.hasPrefix("--- "), line.hasSuffix(" ---") else { return nil }
         let phase = line.dropFirst(4).dropLast(4).trimmingCharacters(in: .whitespaces).lowercased()
         guard !phase.isEmpty else { return nil }
@@ -104,12 +106,9 @@ nonisolated public enum BuildStage: String, CaseIterable, Sendable, Equatable, H
         if phase.contains("benchmark") {
             return .measuring
         }
-        if phase.hasPrefix("running tests for")
-            || phase.hasPrefix("running lldb")
-            || phase.hasPrefix("check-") {
-            return .testing
-        }
-        // A product finished testing, or a new product's clean/build began → back to building.
+        // A clean/build banner (or a product that finished testing) → building. Test banners like
+        // `--- Running tests for swift ---` are intentionally NOT mapped to Testing: the stage flips to
+        // Testing only once real PASS/FAIL results start arriving.
         if phase.hasPrefix("finished tests for")
             || phase.hasPrefix("building")
             || phase.hasPrefix("cleaning") {
@@ -118,6 +117,24 @@ nonisolated public enum BuildStage: String, CaseIterable, Sendable, Equatable, H
         // Unknown banner (e.g. "Bootstrap Local CMake") — don't touch the stage.
         return nil
     }
+
+    /// A ninja compile-progress line, e.g. `[3548/7278][ 48%][1720.206s] … clang …`.
+    static func isNinjaProgressLine(_ line: String) -> Bool {
+        guard line.hasPrefix("[") else { return false }
+        return line.range(of: #"^\[\s*\d+\s*/\s*\d+\s*\]"#, options: .regularExpression) != nil
+    }
+
+    /// A lit test-result line: an uppercase status keyword anchored at the line start, immediately
+    /// followed by a colon (`PASS: Swift(...) :: …`, `FAIL: …`). A compile line that merely contains
+    /// "test" (e.g. `-DGTEST_HAS_RTTI=0`) or an `error:`/`warning:` line never matches.
+    static func isLitResultLine(_ line: String) -> Bool {
+        guard let colon = line.firstIndex(of: ":") else { return false }
+        return litResultKeywords.contains(String(line[line.startIndex..<colon]))
+    }
+
+    private static let litResultKeywords: Set<String> = [
+        "PASS", "FAIL", "XFAIL", "XPASS", "UNSUPPORTED", "UNRESOLVED", "FLAKY", "TIMEOUT"
+    ]
 
     public static func moduleDisplay(for context: BuildOperationsContext) -> String {
         moduleDisplay(for: stage(for: context), context: context)

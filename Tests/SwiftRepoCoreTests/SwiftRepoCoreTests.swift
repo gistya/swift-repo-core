@@ -70,52 +70,59 @@ struct SwiftRepoGUITests {
         #expect(BuildStage.stage(for: context) == .building)
     }
 
-    @Test func buildStageDetectsAuthoritativePhaseBanners() throws {
-        // Only line-anchored `--- … ---` banners (and the distinctive full-line status prints) move
-        // the stage; compiler command lines return nil ("keep the current stage").
+    @Test func buildStageTracksLineTypeAndRealBanners() throws {
+        // Building/testing follow what the output is actually doing: a `[n/m]` counter is compiling, a
+        // lit PASS/FAIL is a running test. Install/build banners move it further. The one-time
+        // plan-summary lines build-script prints at startup are ignored.
+        #expect(BuildStage.detect(bannerIn: "[1502/5533] /usr/bin/clang++ -c SomeTestFile.cpp") == .building)
+        #expect(BuildStage.detect(bannerIn: "[42/100] Linking install_name_tool target") == .building)
+        #expect(BuildStage.detect(bannerIn: "PASS: Swift(macosx-arm64) :: Parse/x.swift (1 of 9)") == .testing)
+        #expect(BuildStage.detect(bannerIn: "FAIL: Swift(macosx-arm64) :: crash/y.swift") == .testing)
+
         #expect(BuildStage.detect(bannerIn: "--- Building swift ---") == .building)
         #expect(BuildStage.detect(bannerIn: "--- Cleaning swift ---") == .building)
         #expect(BuildStage.detect(bannerIn: "--- Building tests for swift ---") == .building)
-        #expect(BuildStage.detect(bannerIn: "--- Running tests for swift ---") == .testing)
-        #expect(BuildStage.detect(bannerIn: "--- Running LLDB unit tests ---") == .testing)
-        #expect(BuildStage.detect(bannerIn: "--- check-swift ---") == .testing)
-        #expect(BuildStage.detect(bannerIn: "--- check-swift finished ---") == .testing)
         #expect(BuildStage.detect(bannerIn: "--- Finished tests for swift ---") == .building)
         #expect(BuildStage.detect(bannerIn: "--- Installing swift ---") == .deploying)
         #expect(BuildStage.detect(bannerIn: "--- Extracting symbols ---") == .deploying)
         #expect(BuildStage.detect(bannerIn: "--- Creating installable package ---") == .deploying)
-        #expect(BuildStage.detect(bannerIn: "Running Swift benchmarks for: macosx-arm64") == .measuring)
 
-        // Not banners → no stage change, no matter what words appear.
-        #expect(BuildStage.detect(bannerIn: "[1502/5533] /usr/bin/clang++ -c SomeTestFile.cpp") == nil)
-        #expect(BuildStage.detect(bannerIn: "[42/100] Linking install_name_tool target") == nil)
+        // Plan-summary lines and test-phase banners do NOT move the stage — Testing comes from PASS/FAIL,
+        // so build-script's startup plan ("Running Swift tests for: …") can no longer stick on Testing.
+        #expect(BuildStage.detect(bannerIn: "Running Swift tests for: check-swift-validation-macosx-arm64") == nil)
+        #expect(BuildStage.detect(bannerIn: "Building the standard library for: swift-stdlib-macosx-arm64") == nil)
+        #expect(BuildStage.detect(bannerIn: "Running Swift benchmarks for: macosx-arm64") == nil)
+        #expect(BuildStage.detect(bannerIn: "--- Running tests for swift ---") == nil)
+        #expect(BuildStage.detect(bannerIn: "--- Running LLDB unit tests ---") == nil)
+        #expect(BuildStage.detect(bannerIn: "--- check-swift ---") == nil)
         #expect(BuildStage.detect(bannerIn: "--- Bootstrap Local CMake ---") == nil)
         #expect(BuildStage.detect(bannerIn: "--- Can't execute tests for host, skipping... ---") == nil)
     }
 
-    @Test func progressParserKeepsStageStickyBetweenBanners() throws {
+    @Test func progressParserDrivesStageFromLineType() throws {
         let started = Date()
-        // Enter testing on a banner…
-        let testing = ProgressParser.parse(
-            line: "--- Running tests for swift ---",
+        // A compile-progress line resets the stage to building — even if a stale plan line had left it
+        // on testing (the reported "LED says Testing while [n/m] compiling" bug).
+        let building = ProgressParser.parse(
+            line: "[3548/7278][ 48%] clang -DGTEST_HAS_RTTI=0 -c magic-symbols.c",
             startedAt: started,
-            previous: BuildProgressSnapshot(completedSteps: 10, totalSteps: 10, fraction: 1, etaSeconds: nil, message: nil, stage: .building)
+            previous: BuildProgressSnapshot(completedSteps: 0, totalSteps: 0, fraction: 0, etaSeconds: nil, message: nil, stage: .testing)
+        )
+        #expect(building.stage == .building)
+
+        // A lit result advances to testing.
+        let testing = ProgressParser.parse(
+            line: "PASS: Swift(macosx-arm64) :: Parse/some_test.swift (123 of 456)",
+            startedAt: started,
+            previous: building
         )
         #expect(testing.stage == .testing)
 
-        // …and stay in testing while lit spews compiler-ish lines that mention nothing authoritative.
-        let stillTesting = ProgressParser.parse(
-            line: "PASS: Swift(macosx-arm64) :: Parse/some_test.swift (123 of 456)",
-            startedAt: started,
-            previous: testing
-        )
-        #expect(stillTesting.stage == .testing)
-
-        // Then a real install banner advances to deploying.
+        // A real install banner advances to deploying.
         let deploying = ProgressParser.parse(
             line: "--- Installing swift ---",
             startedAt: started,
-            previous: stillTesting
+            previous: testing
         )
         #expect(deploying.stage == .deploying)
     }
@@ -773,5 +780,44 @@ private struct TestCommandError: Error, CustomStringConvertible {
         let missing = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("does-not-exist-\(UUID().uuidString)", isDirectory: true)
         #expect(BuildPresetParser.homeDirectoryPresets(in: missing).isEmpty)
+    }
+}
+
+@Suite struct BuildStageDetectTests {
+    @Test func planSummaryLinesDoNotFlipTheStage() {
+        // The one-time plan lines build-script prints at startup must NOT move the stage — matching
+        // "Running Swift tests for:" is exactly what left the stage stuck on Testing through the build.
+        #expect(BuildStage.detect(bannerIn: "Running Swift tests for: check-swift-validation-macosx-arm64") == nil)
+        #expect(BuildStage.detect(bannerIn: "Building the standard library for: swift-stdlib-macosx-arm64") == nil)
+        #expect(BuildStage.detect(bannerIn: "Running Swift benchmarks for: swiftbench") == nil)
+    }
+
+    @Test func ninjaProgressIsBuildingEvenWithGtestOnTheCommandLine() {
+        // The reported regression: a stdlib compile whose command contains `-DGTEST_HAS_RTTI=0`.
+        let line = "[3548/7278][ 48%][1720.206s] /opt/homebrew/bin/sccache /p/clang -DGTEST_HAS_RTTI=0 -c magic-symbols.c"
+        #expect(BuildStage.detect(bannerIn: line) == .building)
+        #expect(BuildStage.detect(bannerIn: "[10/20] clang -DGTEST_HAS_RTTI=0 -Werror=unused -o x.o -c x.c") == .building)
+    }
+
+    @Test func litResultLinesAreTesting() {
+        #expect(BuildStage.detect(bannerIn: "PASS: Swift(macosx-arm64) :: expr/foo.swift (1 of 100)") == .testing)
+        #expect(BuildStage.detect(bannerIn: "FAIL: Swift(macosx-arm64) :: crash/bar.swift") == .testing)
+        #expect(BuildStage.detect(bannerIn: "XFAIL: Swift :: baz.swift") == .testing)
+        #expect(BuildStage.detect(bannerIn: "UNSUPPORTED: Swift :: qux.swift") == .testing)
+    }
+
+    @Test func realBannersStillMoveTheStageButTestBannersDoNot() {
+        #expect(BuildStage.detect(bannerIn: "--- Installing swift ---") == .deploying)
+        #expect(BuildStage.detect(bannerIn: "--- Extracting symbols ---") == .deploying)
+        #expect(BuildStage.detect(bannerIn: "--- Building foundation ---") == .building)
+        #expect(BuildStage.detect(bannerIn: "--- Cleaning llbuild ---") == .building)
+        // A running-tests banner does NOT force Testing; the PASS/FAIL lines will.
+        #expect(BuildStage.detect(bannerIn: "--- Running tests for swift ---") == nil)
+    }
+
+    @Test func noiseKeepsTheStage() {
+        #expect(BuildStage.detect(bannerIn: "-- Performing Test HAVE_CXX_FLAG - Success") == nil)  // "Test" substring
+        #expect(BuildStage.detect(bannerIn: "clang: warning: argument unused") == nil)
+        #expect(BuildStage.detect(bannerIn: "ld: warning: duplicate library") == nil)
     }
 }
