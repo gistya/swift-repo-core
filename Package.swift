@@ -20,7 +20,7 @@ public let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/gistya/swift-compositional-init", from: "1.1.2"),
-        .package(url: "https://github.com/gistya/SwiftXState", exact: "2.0.0-alpha.7"),
+        .package(url: "https://github.com/gistya/SwiftXState", exact: "2.0.0-alpha.9"),
     ],
     targets: [
         .target(
